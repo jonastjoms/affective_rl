@@ -37,12 +37,12 @@ from stable_baselines.common.vec_env import DummyVecEnv
 # Created by Oleg Klimov. Licensed on the same terms as the rest of OpenAI Gym.
 
 FPS    = 50
-SCALE  = 30.0   # affects how fast-paced the game is, forces should be adjusted as well
+SCALE  = 50.0   # affects how fast-paced the game is, forces should be adjusted as well
 
 MAIN_ENGINE_POWER  = 13.0
 SIDE_ENGINE_POWER  =  0.6
 
-INITIAL_RANDOM = 1000.0   # Set 1500 to make game harder
+INITIAL_RANDOM = 500.0   # Set 1500 to make game harder
 
 LANDER_POLY =[
     (-14,+17), (-17,0), (-17,-10),
@@ -163,7 +163,7 @@ class LunarLander(gym.Env, EzPickle):
         self.moon.color1 = (0.0,0.0,0.0)
         self.moon.color2 = (0.0,0.0,0.0)
 
-        initial_y = VIEWPORT_H/SCALE
+        initial_y = VIEWPORT_H/SCALE - 1
         self.lander = self.world.CreateDynamicBody(
             position = (VIEWPORT_W/SCALE/2, initial_y),
             angle=0.0,
@@ -178,8 +178,8 @@ class LunarLander(gym.Env, EzPickle):
         self.lander.color1 = (0.5,0.4,0.9)
         self.lander.color2 = (0.3,0.3,0.5)
         self.lander.ApplyForceToCenter( (
-            self.np_random.uniform(-INITIAL_RANDOM, INITIAL_RANDOM),
-            self.np_random.uniform(-INITIAL_RANDOM, INITIAL_RANDOM)
+            self.np_random.uniform(-INITIAL_RANDOM, 0),
+            self.np_random.uniform(-INITIAL_RANDOM, 0)
             ), True)
 
         self.legs = []
@@ -302,7 +302,7 @@ class LunarLander(gym.Env, EzPickle):
 
         reward = 0
         shaping = \
-            - 100*(state[1] - 2) \
+            - 100*(state[0]) - 100*(state[1] - 2)\
             - 100*np.sqrt(state[2]*state[2] + state[3]*state[3]) \
             - 100*abs(state[4]) - 50*state[6] - 50*state[7]
 
@@ -314,6 +314,9 @@ class LunarLander(gym.Env, EzPickle):
         if self.game_over or abs(state[0]) >= 1.0:
             done   = True
             reward = -100
+        if not self.lander.awake:
+            done   = True
+            reward = +100
 
         return np.array(state, dtype=np.float32), reward, done, {}
 
@@ -333,21 +336,32 @@ class LunarLander(gym.Env, EzPickle):
         for p in self.sky_polys:
             self.viewer.draw_polygon(p, color=(0,0,0))
 
-        for obj in self.particles + self.drawlist:
-            for f in obj.fixtures:
-                trans = f.body.transform
-                if type(f.shape) is circleShape:
-                    t = rendering.Transform(translation=trans*f.shape.pos)
-                    if disturb == True:
-                        self.viewer.draw_circle(f.shape.radius+10, 20, color=obj.color1).add_attr(t)
+        if disturb:
+            for obj in self.drawlist + self.particles:
+                for f in obj.fixtures:
+                    trans = f.body.transform
+                    if type(f.shape) is circleShape:
+                        t = rendering.Transform(translation=trans*f.shape.pos)
+                        self.viewer.draw_circle(f.shape.radius+20, 20, color=obj.color1).add_attr(t)
+                        self.viewer.draw_circle(f.shape.radius, 20, color=obj.color2, filled=False, linewidth=2).add_attr(t)
                     else:
+                        path = [trans*v for v in f.shape.vertices]
+                        self.viewer.draw_polygon(path, color=obj.color1)
+                        path.append(path[0])
+                        self.viewer.draw_polyline(path, color=obj.color2, linewidth=2)
+        else:
+            for obj in self.particles + self.drawlist:
+                for f in obj.fixtures:
+                    trans = f.body.transform
+                    if type(f.shape) is circleShape:
+                        t = rendering.Transform(translation=trans*f.shape.pos)
                         self.viewer.draw_circle(f.shape.radius, 20, color=obj.color1).add_attr(t)
-                    self.viewer.draw_circle(f.shape.radius, 20, color=obj.color2, filled=False, linewidth=2).add_attr(t)
-                else:
-                    path = [trans*v for v in f.shape.vertices]
-                    self.viewer.draw_polygon(path, color=obj.color1)
-                    path.append(path[0])
-                    self.viewer.draw_polyline(path, color=obj.color2, linewidth=2)
+                        self.viewer.draw_circle(f.shape.radius, 20, color=obj.color2, filled=False, linewidth=2).add_attr(t)
+                    else:
+                        path = [trans*v for v in f.shape.vertices]
+                        self.viewer.draw_polygon(path, color=obj.color1)
+                        path.append(path[0])
+                        self.viewer.draw_polyline(path, color=obj.color2, linewidth=2)
 
         for x in [self.helipad_x1, self.helipad_x2]:
             flagy1 = self.helipad_y

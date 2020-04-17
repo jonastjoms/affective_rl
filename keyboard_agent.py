@@ -1,13 +1,10 @@
 #!/usr/bin/env python
 import sys, gym, time
+from lunar_lander_bot import LunarLander
+import pickle
+import numpy as np
 
-from stable_baselines import DQN
-from stable_baselines.common.evaluation import evaluate_policy
-
-from lunar_lander_human import LunarLander
 env = LunarLander()
-# Load the trained agent
-model = DQN.load("ok_dqn_lunar")
 
 if not hasattr(env.action_space, 'n'):
     raise Exception('Keyboard agent only supports discrete action spaces')
@@ -18,7 +15,6 @@ SKIP_CONTROL = 0    # Use previous control decision SKIP_CONTROL times, that's h
 human_agent_action = 0
 human_wants_restart = False
 human_sets_pause = False
-human_in_control = True
 
 def key_press(key, mod):
     global human_agent_action, human_wants_restart, human_sets_pause
@@ -42,43 +38,37 @@ env.unwrapped.viewer.window.on_key_release = key_release
 def rollout(env):
     global human_agent_action, human_wants_restart, human_sets_pause
     human_wants_restart = False
-    obs = env.reset()
+    obser = env.reset()
     skip = 0
     total_reward = 0
     total_timesteps = 0
-    count = 0
     while 1:
-        count +=1
         if not skip:
             #print("taking action {}".format(human_agent_action))
-            human_action = human_agent_action
+            a = human_agent_action
             total_timesteps += 1
             skip = SKIP_CONTROL
         else:
             skip -= 1
-
-        robot_action, _states = model.predict(obs)
-        if count > 20 and count < 100 :
-            obs, r, done, info = env.step(robot_action)
-        else:
-            obs, r, done, info = env.step(human_action)
+        obser, r, done, info = env.step(a)
+        if r != 0:
+            print("reward %0.3f" % r)
         total_reward += r
-        if count > 100000:
-            window_still_open = env.render(disturb = True)
-        else:
-            window_still_open = env.render()
+        window_still_open = env.render()
         if window_still_open==False: return False
         if done: break
         if human_wants_restart: break
+        # Its important to use binary mode
+        dbfile = open('probs.p', 'rb')
+        # source, destination
+        proba = pickle.load(dbfile)
+        values = proba*100
+        print(np.floor(values))
         while human_sets_pause:
             env.render()
             time.sleep(0.1)
         time.sleep(0.1)
     print("timesteps %i reward %0.2f" % (total_timesteps, total_reward))
-
-print("ACTIONS={}".format(ACTIONS))
-print("Press keys 1 2 3 ... to take actions 1 2 3 ...")
-print("No keys pressed is taking action 0")
 
 while 1:
     window_still_open = rollout(env)

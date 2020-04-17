@@ -30,7 +30,7 @@ from lunar_lander_bot import LunarLander
 env = LunarLander()
 
 # Load the trained agent
-model = DQN.load("ok_dqn_lunar")
+model = DQN.load("dqn_lunar_hover3")
 
 # Evaluate the agent
 #mean_reward, std_reward = evaluate_policy(model, env, n_eval_episodes=10)
