@@ -178,8 +178,8 @@ class LunarLander(gym.Env, EzPickle):
         self.lander.color1 = (0.5,0.4,0.9)
         self.lander.color2 = (0.3,0.3,0.5)
         self.lander.ApplyForceToCenter( (
-            self.np_random.uniform(-INITIAL_RANDOM, 0),
-            self.np_random.uniform(-INITIAL_RANDOM, 0)
+            self.np_random.uniform(-INITIAL_RANDOM, INITIAL_RANDOM),
+            self.np_random.uniform(-INITIAL_RANDOM, INITIAL_RANDOM)
             ), True)
 
         self.legs = []
@@ -302,13 +302,16 @@ class LunarLander(gym.Env, EzPickle):
 
         reward = 0
         shaping = \
-            - 100*(state[0]) - 100*(state[1] - 2)\
+            - 100*np.sqrt(state[0]*state[0] + state[1]*state[1]) \
             - 100*np.sqrt(state[2]*state[2] + state[3]*state[3]) \
-            - 100*abs(state[4]) - 50*state[6] - 50*state[7]
-
+            - 100*abs(state[4]) + 10*state[6] + 10*state[7]   # And ten points for legs contact, the idea is if you
+                                                              # lose contact again after landing, you get negative reward
         if self.prev_shaping is not None:
             reward = shaping - self.prev_shaping
         self.prev_shaping = shaping
+
+        reward -= m_power*0.30  # less fuel spent is better, about -30 for heurisic landing
+        reward -= s_power*0.03
 
         done = False
         if self.game_over or abs(state[0]) >= 1.0:
