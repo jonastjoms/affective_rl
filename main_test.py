@@ -44,6 +44,7 @@ class RL:
         self.first_update = True
         self.lunar_episode_counter = 0
         self.lunar_per_episode_step_counter = 0
+        self.lunar_per_episode_reward = 0
 
     def get_state(self, probs):
         state = np.zeros((1, 7))[0]
@@ -103,6 +104,7 @@ def rollout(env, rl_agent):
 
         # Add to reward for RL_agent
         rl_agent.per_step_reward += r
+        rl_agent.lunar_per_episode_reward += r
 
         # Render environment
         if rl_agent.disturb == True:
@@ -154,7 +156,7 @@ def rollout(env, rl_agent):
             print("Disturb: ", rl_agent.disturb)
 
         # Every 50 step, maybe change mode
-        if rl_agent.timer % 200 == 0:
+        if rl_agent.timer % 100 == 0:
             rl_agent.disturb = change_mode()
 
         # Check if done etc.
@@ -232,9 +234,14 @@ if __name__ == '__main__':
         print("Models loaded")
         time.sleep(5)
 
-    for step in range(50):
+    total_reward = 0
+    while rl_agent.timer < 1000:
         rl_agent.lunar_episode_counter += 1
         rl_agent.lunar_per_episode_step_counter = 0
         window_still_open = rollout(env, rl_agent)
         if window_still_open == False:
             break
+        total_reward += rl_agent.lunar_per_episode_reward
+        rl_agent.lunar_per_episode_reward = 0
+
+print(total_reward)
